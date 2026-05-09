@@ -16,3 +16,4 @@ config/
 # Large files
 large_files/
 
+clean_comments.py 
