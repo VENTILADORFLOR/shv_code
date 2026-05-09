@@ -2,7 +2,7 @@
 
 Analysis code for the paper:
 
-> Li, Y. "Functional Zone Divergence Under Successive Policy Shocks in a Rapidly Urbanizing Coastal City: Evidence from Multi-Node Nighttime-Light Monitoring, Sihanoukville, Cambodia (2014–2026)." *Journal of Urban Planning and Development* (under review).
+> Li, Y. "Spatiotemporal Dynamics of Nighttime-Light Responses to Successive Policy Shocks in a Data-Scarce Coastal City: Multi-Node VIIRS Time-Series Analysis of Sihanoukville, Cambodia (2014–2026)." Journal of Applied Remote Sensing (submitted).
 
 All satellite data are accessed via [Google Earth Engine](https://earthengine.google.com/). A GEE account is required to run the download scripts.
 
@@ -114,9 +114,9 @@ integrated/make_integrated_tables.py
 If you use this code, please cite:
 
 ```
-Li, Y. "Functional Zone Divergence Under Successive Policy Shocks in a Rapidly Urbanizing
-Coastal City: Evidence from Multi-Node Nighttime-Light Monitoring, Sihanoukville, Cambodia
-(2014–2026)." Journal of Urban Planning and Development (under review).
+Li, Y. (2026). "Spatiotemporal dynamics of nighttime-light responses to successive policy 
+shocks in a data-scarce coastal city: Multi-node VIIRS time-series analysis of 
+Sihanoukville, Cambodia (2014–2026)." Journal of Applied Remote Sensing (submitted).
 ```
 
 Scripts will be archived on Zenodo upon formal acceptance.
