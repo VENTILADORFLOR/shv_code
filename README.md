@@ -1,216 +1,128 @@
-shv-gl-ssez
+# SHV Multi-Node NTL Analysis — Scripts
 
-Remote sensing and spatial analysis of urban transformation in Sihanoukville, Cambodia, focusing on three functionally distinct nodes:
+Analysis code for the paper:
 
-- Urban core (SHV)
-- Commercial hub (Golden Lions)
-- Industrial zone (SSEZ)
+> Li, Y. "Functional Zone Divergence Under Successive Policy Shocks in a Rapidly Urbanizing Coastal City: Evidence from Multi-Node Nighttime-Light Monitoring, Sihanoukville, Cambodia (2014–2026)." *Journal of Urban Planning and Development* (under review).
 
-This project integrates VIIRS nighttime lights, Sentinel-2 indices, and spatial analysis to quantify uneven recovery, structural divergence, and policy shock responses in a data-scarce urban environment.
+All satellite data are accessed via [Google Earth Engine](https://earthengine.google.com/). A GEE account is required to run the download scripts.
 
+---
 
-========================
-Study Areas
-========================
+## Requirements
 
-- Sihanoukville (SHV) — Urban baseline and macro dynamics  
-- Golden Lions (GL) — High-density commercial and nightlife core  
-- SSEZ — Industrial production and export-oriented zone  
+```
+Python >= 3.9
+earthengine-api
+geopandas
+rasterio
+pandas
+numpy
+statsmodels
+matplotlib
+scipy
+```
 
-This multi-node design enables comparison between consumption-driven, service-based, and production-based urban systems.
+Install dependencies:
 
+```bash
+pip install earthengine-api geopandas rasterio pandas numpy statsmodels matplotlib scipy
+earthengine authenticate
+```
 
-========================
-Repository Structure
-========================
+---
 
-data/            Boundary and ROI shapefiles  
-scripts/         Python scripts for download, processing, analysis, and plotting  
-outputs/         Generated CSV tables, statistics, figures, and selected results  
-docs/            Manuscript and submission-related documents  
-arcgisproject/   ArcGIS layout previews and project package  
-large_files/     Local-only large files (ignored)  
-config/          Local configuration (ignored)  
-.github/         GitHub Actions workflow  
+## Repository Structure
 
+```
+scripts/
+├── gl/                          # Golden Lions commercial service node (ROI: 2.94 km²)
+│   ├── make_gl_point_buffer.py  # Generate 1 km circular buffer from roundabout centroid; clip sea surface
+│   ├── download_viirs_gl.py         # Extract monthly VIIRS/DNB avg_rad (VCMSLCFG) for GL ROI via GEE
+│   ├── download_s2_indices_gl.py    # Extract monthly Sentinel-2 NDBI and NDVI for GL ROI via GEE
+│   ├── analyze_gl.py                # STL decomposition, normalised index (2017=100), YoY rates
+│   ├── merge_ntl_s2_gl.py           # Merge NTL and Sentinel-2 time series into cross-validation dataset
+│   ├── make_stage_tables_gl.py      # Compute phase-average statistics across four policy phases
+│   ├── plot_gl.py                   # Plot NTL trend, normalised index, and YoY growth panels
+│   └── plot_ntl_vs_s2_gl.py         # NTL–NDBI/NDVI correlation plots and NTL/NDBI ratio analysis
+│
+├── ssez/                        # Sihanoukville Special Economic Zone (ROI: 9.30 km²)
+│   ├── download_viirs_ssez.py       # Extract monthly VIIRS/DNB SOL Sum for SSEZ boundary via GEE
+│   ├── check_quality.py     # VIIRS monthly coverage QA: flag low-coverage and monsoon-gap months for SSEZ
+│   ├── analyze_ssez.py              # STL decomposition, normalised index, shock response metrics
+│   └── plot_ssez.py                 # Plot NTL trend, normalised index, and YoY growth panels
+│
+├── shv/                         # Preah Sihanouk Province administrative baseline (1,605 km²)
+│   ├── make_shv_roi.py              # Extract provincial boundary from FAO GAUL 2015 level-1 via GEE
+│   ├── download_viirs_shv.py        # Extract monthly VIIRS/DNB SOL Sum for provincial ROI via GEE
+│   ├── analyze_shv.py               # STL decomposition, normalised index, provincial trend analysis
+│   └── plot_shv.py                  # Plot provincial NTL trend and STL decomposition panels
+│
+└── integrated/                  # Cross-node comparison
+    ├── compare_vitality.py          # Three-node normalised index overlay, YoY correlation, shock response comparison
+    └── make_integrated_tables.py    # Generate Tables 2–5 from the paper (phase averages, correlations, sanctions signal)
+```
 
-========================
-Main Workflows
-========================
+---
 
-[1] Sihanoukville
+## Data Sources
 
-scripts/shv/
-- make_shv_roi.py
-- download_viirs_shv.py
-- analyze_shv.py
-- plot_shv.py
+| Dataset | GEE ID | Resolution | Period |
+|---|---|---|---|
+| VIIRS/DNB Monthly (stray-light corrected) | `NOAA/VIIRS/DNB/MONTHLY_V1/VCMSLCFG` | 500 m | Jan 2014–Mar 2026 |
+| Sentinel-2 SR Harmonised | `COPERNICUS/S2_SR_HARMONIZED` | 10 m | Jul 2015–Mar 2026 |
+| FAO GAUL 2015 Level-1 | `FAO/GAUL/2015/level1` | — | — |
+| MODIS MOD44W Water Mask | `MODIS/006/MOD44W` | 250 m | 2015 |
 
-outputs/shv/
-- gee/
-- stats/
-- figures/
+---
 
+## Suggested Run Order
 
-[2] Golden Lions
+```
+# 1. Define ROIs
+shv/make_shv_roi.py
+gl/make_gl_point_buffer.py
 
-scripts/gl/
-- make_gl_point_buffer.py
-- download_viirs_gl.py
-- download_s2_indices_gl.py
-- analyze_gl.py
-- merge_ntl_s2_gl.py
-- make_stage_tables_gl.py
-- plot_gl.py
-- plot_ntl_vs_s2_gl.py
+# 2. Download satellite data
+shv/download_viirs_shv.py
+gl/download_viirs_gl.py
+gl/download_s2_indices_gl.py
+ssez/download_viirs_ssez.py
+ssez/check_quality.py
 
-outputs/gl/
-- gee/
-- sentinel_indices/
-- merged/
-- stats/
-- tables/
-- figures/
+# 3. Analyse each node
+shv/analyze_shv.py
+gl/analyze_gl.py
+gl/merge_ntl_s2_gl.py
+ssez/analyze_ssez.py
 
+# 4. Generate outputs
+shv/plot_shv.py
+gl/make_stage_tables_gl.py
+gl/plot_gl.py
+gl/plot_ntl_vs_s2_gl.py
+ssez/plot_ssez.py
 
-[3] SSEZ
+# 5. Cross-node comparison
+integrated/compare_vitality.py
+integrated/make_integrated_tables.py
+```
 
-scripts/ssez/
-- download_viirs_ssez.py
-- download_sentinel_ssez.py
-- analyze_ssez.py
-- plot_ssez.py
+---
 
-outputs/ssez/
-- gee/
-- sentinel/
-- stats/
-- figures/
+## Citation
 
+If you use this code, please cite:
 
-[4] Integrated Analysis
+```
+Li, Y. "Functional Zone Divergence Under Successive Policy Shocks in a Rapidly Urbanizing
+Coastal City: Evidence from Multi-Node Nighttime-Light Monitoring, Sihanoukville, Cambodia
+(2014–2026)." Journal of Urban Planning and Development (under review).
+```
 
-scripts/integrated/
-- compare_three_nodes.py
-- compare_vitality.py
-- make_integrated_tables.py
+Scripts will be archived on Zenodo upon formal acceptance.
 
-outputs/integrated/
-- stats/
-- tables/
-- figures/
+---
 
+## License
 
-========================
-Key Outputs
-========================
-
-Figures:
-- outputs/integrated/figures/three_nodes_main.png
-- outputs/integrated/figures/comparison_vitality_main.png
-- outputs/integrated/figures/comparison_structural_divergence.png
-
-Tables:
-- outputs/integrated/tables/phase_average_indices.csv
-- outputs/integrated/tables/table2_phase_average_indices.csv
-- outputs/integrated/tables/table3_policy_shock_response.csv
-
-
-========================
-Documents
-========================
-
-docs/
-- sihanoukville_rsase_final.docx
-- GeoJournal_adaptation_draft.docx
-- Declaration_of_interest.docx
-- Ethical_statement.docx
-- RSASE submission PDF
-
-
-========================
-Methodological Framework
-========================
-
-- VIIRS Nighttime Lights (NTL) — economic activity proxy  
-- Sentinel-2 indices — NDVI, NDBI for built-environment dynamics  
-- STL decomposition — trend and seasonal extraction  
-- Comparative node analysis — structural divergence across urban functions  
-
-Designed for data-scarce environments.
-
-
-========================
-Environment
-========================
-
-pip install -r requirements.txt
-
-Main libraries:
-- earthengine-api
-- geemap
-- geopandas
-- pandas
-- numpy
-- matplotlib
-- rasterio
-- shapely
-
-
-========================
-Configuration
-========================
-
-config/gee_config.py
-
-Example:
-GEE_PROJECT_ID = "your-project-id"
-
-(config folder is ignored in GitHub)
-
-
-========================
-Large Files Policy
-========================
-
-Ignored file types:
-- *.psd
-- *.tif
-- *.tiff
-- *.zip
-- *.ppkx
-- *.aux.xml
-- __pycache__/
-
-Local storage:
-large_files/
-
-
-========================
-Suggested Workflow
-========================
-
-1. Prepare boundaries → data/
-2. Download data → scripts/*/download_*.py
-3. Run analysis → scripts/*/analyze_*.py
-4. Generate figures → scripts/*/plot_*.py
-5. Integrated comparison → scripts/integrated/
-
-
-========================
-Project Positioning
-========================
-
-- Research reproducibility package  
-- Manuscript support material  
-- Remote sensing workflow demonstration  
-- Academic / portfolio project  
-
-(Not intended for large raw datasets)
-
-
-========================
-License
-========================
-
-For academic and research use.
+MIT License. See `LICENSE` for details.
