@@ -1,0 +1,22 @@
+project:
+  name: "shv"
+  base_year: 2017
+
+paths:
+  data_dir: "data"
+  scripts_dir: "scripts"
+  outputs_dir: "outputs"
+
+rois:
+  gl: "data/gl/roi/gl.geojson"
+  ssez: "data/ssez/roi/ssez.geojson"
+  shv: "data/shv/roi/shv.geojson"
+
+study_period:
+  start: "2014-01-01"
+  end: "2026-02-28"
+
+shocks:
+  policy_818: "2019-08-18"
+  covid_cambodia: "2020-03-01"
+  us_sanctions: "2025-10-15"
