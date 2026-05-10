@@ -1,11 +1,11 @@
-utf-8import pandas as pd
+import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-                                                           
-         
-                                                           
+# =========================================================
+# 1. Path configuration
+# =========================================================
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 INPUT_CSV = PROJECT_ROOT / "outputs" / "gl" / "stats" / "gl_boundary_stats.csv"
@@ -17,26 +17,26 @@ OUT_MAIN  = OUTPUT_DIR / "gl_main.png"
 OUT_AUDIT = OUTPUT_DIR / "gl_lighting_audit.png"
 OUT_STL   = OUTPUT_DIR / "gl_stl_decomp.png"
 
-                                                           
-         
-                                                           
+# =========================================================
+# 2. Load data
+# =========================================================
 df = pd.read_csv(INPUT_CSV)
 df["date"] = pd.to_datetime(df["date"])
 df = df.sort_values("date").reset_index(drop=True)
 
 required_cols = [
-          , "Mean_raw", "Intensity_Mean", "Mean_interp",
-               , "STL_Seasonal", "STL_Resid",
-             , "Index_2017", "is_cloud_gap", "is_low_cvg",
+    "date", "Mean_raw", "Intensity_Mean", "Mean_interp",
+    "STL_Trend", "STL_Seasonal", "STL_Resid",
+    "YoY_pct", "Index_2017", "is_cloud_gap", "is_low_cvg",
 ]
 missing_cols = [c for c in required_cols if c not in df.columns]
 if missing_cols:
     raise ValueError(
-                                          
-                                      
+        f"Input CSV is missing required columns: {missing_cols}\n"
+        "Please run analyze_gl.py first to generate the complete statistics file."
     )
 
-                         
+# Combined flag for cloud-obscured and low-quality months (used for scatter annotations)
 cloud_dates = df.loc[df["is_cloud_gap"] | df["is_low_cvg"], "date"]
 
 ymax_raw = df["Mean_raw"].replace(0, np.nan).dropna().max()
@@ -46,9 +46,9 @@ if pd.isna(ymax_raw):
 valid_intensity = df["Intensity_Mean"].dropna()
 ymin_marker = valid_intensity.quantile(0.05) if len(valid_intensity) > 0 else 1.0
 
-                                                           
-              
-                                                           
+# =========================================================
+# 3. Time stages and helper functions
+# =========================================================
 stage_bands = [
     ("2017-01-01", "2019-08-17", "#E8F5E9", "Gambling Boom"),
     ("2019-08-18", "2021-06-30", "#FFEBEE", "Post-818"),
@@ -64,16 +64,16 @@ def draw_bands(ax):
     ax.axvline(pd.to_datetime("2025-10-15"), color="darkorange",
                linestyle="--", linewidth=1.5, alpha=0.9, zorder=3)
 
-                                                           
-                            
-                                                           
+# =========================================================
+# 4. Figure 1: main panel (raw signal + index + YoY)
+# =========================================================
 fig = plt.figure(figsize=(16, 12))
 gs  = fig.add_gridspec(3, 1, height_ratios=[3, 1.8, 1.8], hspace=0.35)
 ax1 = fig.add_subplot(gs[0])
 ax2 = fig.add_subplot(gs[1])
 ax3 = fig.add_subplot(gs[2])
 
-                              
+# --- ax1: raw scatter + STL Trend ---
 draw_bands(ax1)
 
 ax1.scatter(
@@ -94,9 +94,9 @@ ax1.plot(
 )
 
 ax1.text(pd.to_datetime("2019-09-01"), ymax_raw * 0.90,
-                            , color="#C0392B", fontsize=9, fontweight="bold")
+         "818 Policy\nShock", color="#C0392B", fontsize=9, fontweight="bold")
 ax1.text(pd.to_datetime("2025-10-22"), ymax_raw * 0.75,
-                              , color="darkorange", fontsize=9, fontweight="bold")
+         "2025 Oct\nSanctions", color="darkorange", fontsize=9, fontweight="bold")
 
 for s, e, c, label in stage_bands:
     mid = pd.to_datetime(s) + (pd.to_datetime(e) - pd.to_datetime(s)) / 2
@@ -106,14 +106,14 @@ for s, e, c, label in stage_bands:
 ax1.set_xlim(pd.to_datetime("2014-01-01"), pd.to_datetime("2026-06-01"))
 ax1.set_ylabel("Intensity Mean (nW·cm⁻²·sr⁻¹)", fontsize=11)
 ax1.set_title(
-                                                                               
-                                                                                       ,
+    "Golden Lions — Hand-Digitized Boundary · Light Intensity Mean 2014–2026\n"
+    "VIIRS monthly composite · STL trend decomposition · Service-sector activity proxy",
     fontsize=13, fontweight="bold",
 )
 ax1.legend(loc="upper left", fontsize=9)
 ax1.grid(True, alpha=0.2)
 
-                   
+# --- ax2: normalized index ---
 draw_bands(ax2)
 ax2.axhline(100, color="black", linewidth=1, linestyle=":", alpha=0.6)
 ax2.plot(df["date"], df["Index_2017"], color="#6C3483", linewidth=2.5, zorder=4)
@@ -127,7 +127,7 @@ ax2.set_ylabel("Index (2017 = 100)", fontsize=11)
 ax2.set_title("Normalized Activity Index (2017 = 100)", fontsize=11)
 ax2.grid(True, alpha=0.2)
 
-                 
+# --- ax3: YoY ---
 draw_bands(ax3)
 ax3.axhline(0, color="black", linewidth=1, alpha=0.7)
 yoy = df["YoY_pct"]
@@ -135,7 +135,7 @@ ax3.fill_between(df["date"], yoy, 0, where=yoy >= 0, color="#6C3483", alpha=0.55
 ax3.fill_between(df["date"], yoy, 0, where=yoy <  0, color="#C0392B", alpha=0.55)
 ax3.plot(df["date"], yoy, color="#6C3483", linewidth=1.5, zorder=4)
 
-                                   
+# Unified x-axis limits; first 12 months of YoY are NaN and display as blank
 ax3.set_xlim(pd.to_datetime("2014-01-01"), pd.to_datetime("2026-06-01"))
 ax3.set_ylim(-80, 150)
 ax3.set_ylabel("YoY % (STL trend-based)", fontsize=11)
@@ -144,17 +144,17 @@ ax3.grid(True, alpha=0.2)
 
 plt.savefig(OUT_MAIN, dpi=300, bbox_inches="tight")
 plt.close(fig)
-print(f"已保存: {OUT_MAIN}")
+print(f"Saved: {OUT_MAIN}")
 
-                                                           
-               
-                                                           
+# =========================================================
+# 5. Figure 2: brightness baseline audit
+# =========================================================
 trough_periods = {
-          : ("2014-01-01", "2014-12-31"),
-          : ("2015-01-01", "2015-12-31"),
-          : ("2016-01-01", "2016-12-31"),
-          : ("2020-03-01", "2020-12-31"),
-          : ("2021-01-01", "2021-06-30"),
+    "2014": ("2014-01-01", "2014-12-31"),
+    "2015": ("2015-01-01", "2015-12-31"),
+    "2016": ("2016-01-01", "2016-12-31"),
+    "2020": ("2020-03-01", "2020-12-31"),
+    "2021": ("2021-01-01", "2021-06-30"),
 }
 trough_means = {}
 for yr, (s, e) in trough_periods.items():
@@ -173,11 +173,11 @@ base_2020_21 = np.mean(t_vals[3:])
 gap = base_2020_21 - base_2014_16
 
 stage_audit = {
-                   :       ("2017-01-01", "2017-12-31", "#2E86C1"),
-                       :   ("2019-06-01", "2019-08-31", "#C0392B"),
-                    :      ("2020-01-01", "2021-06-30", "#884EA0"),
-                         : ("2022-01-01", "2023-05-31", "#E67E22"),
-                        :  ("2025-01-01", "2025-08-31", "#1E8449"),
+    "2017 Baseline":       ("2017-01-01", "2017-12-31", "#2E86C1"),
+    "2019 Pre-818 Peak":   ("2019-06-01", "2019-08-31", "#C0392B"),
+    "2020-21 Trough":      ("2020-01-01", "2021-06-30", "#884EA0"),
+    "2022-23 Second Boom": ("2022-01-01", "2023-05-31", "#E67E22"),
+    "2025 Pre-Sanctions":  ("2025-01-01", "2025-08-31", "#1E8449"),
 }
 
 pre818     = df[
@@ -195,7 +195,7 @@ bx1  = fig2.add_subplot(gs2[0])
 bx2  = fig2.add_subplot(gs2[1])
 bx3  = fig2.add_subplot(gs2[2])
 
-                 
+# Panel ①: time series + stage-mean horizontal lines
 for label, (s, e, col) in stage_audit.items():
     sub = df[
         (df["date"] >= s) &
@@ -209,7 +209,7 @@ for label, (s, e, col) in stage_audit.items():
     bx1.hlines(mu, pd.to_datetime(s), pd.to_datetime(e),
                colors=col, linewidths=2.5, zorder=5)
     bx1.text(pd.to_datetime(s) + pd.Timedelta(days=8), mu + 2,
-                          , color=col, fontsize=9, fontweight="bold")
+             f"μ={mu:.1f}", color=col, fontsize=9, fontweight="bold")
 
 bx1.scatter(
     cloud_dates, [2] * len(cloud_dates),
@@ -227,23 +227,23 @@ bx1.axvline(pd.to_datetime("2025-10-15"), color="darkorange",
             linestyle="--", linewidth=1.5, alpha=0.9)
 
 bx1.text(pd.to_datetime("2019-08-18") + pd.Timedelta(days=8), ymax_raw * 1.10,
-                           , rotation=90, color="#C0392B",
+         "818 Policy Shock", rotation=90, color="#C0392B",
          fontsize=9, fontweight="bold", va="top", ha="left", alpha=0.95)
 bx1.text(pd.to_datetime("2025-10-15") + pd.Timedelta(days=8), ymax_raw * 1.10,
-                             , rotation=90, color="darkorange",
+         "2025 Oct Sanctions", rotation=90, color="darkorange",
          fontsize=9, fontweight="bold", va="top", ha="left", alpha=0.95)
 
 bx1.set_xlim(pd.to_datetime("2014-01-01"), pd.to_datetime("2026-06-01"))
 bx1.set_ylim(-5, ymax_raw * 1.15)
 bx1.set_ylabel("Intensity Mean (nW·cm⁻²·sr⁻¹)", fontsize=11)
 bx1.set_title(
-                                                                                      ,
+    "Golden Lions — Light Intensity Audit: Activity Signal vs Infrastructure Baseline",
     fontsize=12, fontweight="bold",
 )
 bx1.legend(loc="upper left", fontsize=9)
 bx1.grid(True, alpha=0.2)
 
-            
+# Panel ②: non-boom period bar chart
 bar_cols = ["#85C1E9", "#5DADE2", "#2E86C1", "#884EA0", "#6C3483"]
 x_pos    = np.arange(len(t_labels))
 bars     = bx2.bar(x_pos, t_vals, color=bar_cols,
@@ -251,7 +251,7 @@ bars     = bx2.bar(x_pos, t_vals, color=bar_cols,
 
 for bar, val in zip(bars, t_vals):
     bx2.text(bar.get_x() + bar.get_width() / 2, val + 0.4,
-                         , ha="center", va="bottom", fontsize=10, fontweight="bold")
+             f"{val:.1f}", ha="center", va="bottom", fontsize=10, fontweight="bold")
 
 bx2.axhline(base_2014_16, color="#2E86C1", linestyle="--", linewidth=1.5, alpha=0.8,
             label=f"2014–2016 avg = {base_2014_16:.1f}")
@@ -262,24 +262,24 @@ bx2.set_xticks(x_pos)
 bx2.set_xticklabels(t_labels, fontsize=11)
 bx2.text(
     0.98, 0.6,
-                                                                                         
-                                                 
-                                                                               ,
+    f"Post-818 trough +{gap:.1f} above 2014–16 baseline (+{gap/base_2014_16*100:.0f}%)\n"
+    f"→ Partial infrastructure effect possible\n"
+    f"   but peak swing ({(pre818-base_early)/base_early*100:.0f}%) far larger",
     transform=bx2.transAxes, ha="right", va="top", fontsize=9, color="#6C3483",
     bbox=dict(boxstyle="round,pad=0.45", facecolor="#F4ECF7",
               edgecolor="#884EA0", alpha=0.85),
 )
 bx2.set_ylabel("Mean Intensity\n(cloud-gap months excluded)", fontsize=10)
 bx2.set_title(
-                                             
-                                                                     ,
+    "Baseline Check: Non-Boom Annual Means\n"
+    "(Infrastructure effect would show monotonic increase 2014→2020)",
     fontsize=10,
 )
 bx2.legend(fontsize=9, loc="upper left")
 bx2.grid(True, alpha=0.2, axis="y")
 bx2.set_ylim(0, max(t_vals) * 1.35)
 
-              
+# Panel ③: month-on-month rate of change
 bx3.fill_between(df["date"], mom.clip(lower=0), 0,
                  color="#1E8449", alpha=0.6, label="MoM increase")
 bx3.fill_between(df["date"], mom.clip(upper=0), 0,
@@ -291,7 +291,7 @@ bx3.axvline(pd.to_datetime("2025-10-15"), color="darkorange",
             linestyle="--", linewidth=1.5, alpha=0.9)
 
 bx3.annotate(
-                                                                                 ,
+    "Sustained decline post-818\n(infrastructure cannot explain\nrapid reversal)",
     xy=(pd.to_datetime("2020-02-01"), -40),
     xytext=(pd.to_datetime("2017-04-01"), -115),
     fontsize=8.5, color="#C0392B",
@@ -301,28 +301,28 @@ bx3.set_xlim(pd.to_datetime("2014-01-01"), pd.to_datetime("2026-06-01"))
 bx3.set_ylim(-120, 200)
 bx3.set_ylabel("Month-on-Month %", fontsize=10)
 bx3.set_title(
-                                                                              ,
+    "MoM Fluctuation: Rapid Reversals Inconsistent with Infrastructure Effect",
     fontsize=10,
 )
 bx3.legend(fontsize=9, loc="upper left")
 bx3.grid(True, alpha=0.2)
 
 fig2.suptitle(
-                                                          
-                                                                       ,
+    "Golden Lions Service-Sector Proxy — Lighting Audit\n"
+    "Separating activity signal from potential infrastructure baseline",
     fontsize=13, fontweight="bold",
 )
 plt.savefig(OUT_AUDIT, dpi=300, bbox_inches="tight")
 plt.close(fig2)
-print(f"已保存: {OUT_AUDIT}")
+print(f"Saved: {OUT_AUDIT}")
 
-                                                           
-                
-                                                           
+# =========================================================
+# 6. Figure 3: four-panel STL decomposition
+# =========================================================
 fig3, axes3 = plt.subplots(4, 1, figsize=(16, 14), sharex=True)
 
 panels3 = [
-    (df["Intensity_Mean"], "#7D3C98", "Original Intensity Mean (NaN / low-cvg = interpolated)"),
+    (df["Intensity_Mean"], "#7D3C98", "Original Intensity Mean (missing and low-quality values linearly interpolated)"),
     (df["STL_Trend"],      "#6C3483", "STL Trend — activity signal"),
     (df["STL_Seasonal"],   "#2471A3", "STL Seasonal Component — monsoon pattern"),
     (df["STL_Resid"],      "#C0392B", "STL Residual — unexplained shocks"),
@@ -349,20 +349,20 @@ for ax, (data, color, title) in zip(axes3, panels3):
 axes3[-1].set_xlim(pd.to_datetime("2014-01-01"), pd.to_datetime("2026-06-01"))
 
 fig3.suptitle(
-                                                                
-                                                                       ,
+    "STL Decomposition — Golden Lions Hand-Digitized Boundary\n"
+    "Separating monsoon seasonality from service-sector activity trend",
     fontsize=13, fontweight="bold", y=1.01,
 )
 plt.tight_layout()
 plt.savefig(OUT_STL, dpi=300, bbox_inches="tight")
 plt.close(fig3)
 
-                                                           
-         
-                                                           
-print("\n========== GL 绘图完成 ==========")
-print(f"输入文件: {INPUT_CSV}")
-print(f"输出目录: {OUTPUT_DIR}")
-print(f"已保存: {OUT_MAIN}")
-print(f"已保存: {OUT_AUDIT}")
-print(f"已保存: {OUT_STL}")
+# =========================================================
+# 7. Output summary
+# =========================================================
+print("\n========== GL plotting complete ==========")
+print(f"Input file: {INPUT_CSV}")
+print(f"Output directory: {OUTPUT_DIR}")
+print(f"Saved: {OUT_MAIN}")
+print(f"Saved: {OUT_AUDIT}")
+print(f"Saved: {OUT_STL}")
